@@ -1,0 +1,7 @@
+*
+.gitignore
+Main.hs
+Interpret.hs
+Parser.hs
+examples/
+README.md
