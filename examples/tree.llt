@@ -1,0 +1,12 @@
+struct Tree(a) {
+    List(Tree(a)) branches;
+    a val;
+}
+
+Tree(a) leaf(a val) {
+    return [[], val];
+}
+
+Tree(a) bin_node(Tree(a) x, Tree(a) y, a val) {
+    return [[x, y], val]
+}
