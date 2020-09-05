@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser (parseMaybe, lyliet) where
+module Parser (parseLyliet) where
 
+import Data.Char
 import Data.Void
 import Data.Maybe
 import Data.Text (Text)
+import Control.Monad
 import qualified Data.Text as T
 
 import Text.Megaparsec
@@ -12,23 +14,9 @@ import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Monad.Combinators.Expr
 
-type Parser = Parsec Void Text
+import AST
 
--- some type definitions
-type Name = Text
-data Expr = Call Name [Expr] | IntLit Int | ListLit [Expr] | Name Name deriving Show
-data Statement = Line Expr
-               | If Expr Statement (Maybe Statement)
-               | While Expr Statement
-               | For Name Expr Statement
-               | Block [Statement]
-               | Decl Type Name (Maybe Expr)
-               | Return Expr
-               | Break
-               | Continue
-  deriving Show
-data Type = Type Name [Type] deriving Show
-data TopLevel = Def Type Name [(Type, Name)] Statement | Struct Type [(Type, Name)] deriving Show
+type Parser = Parsec Void Text
 
 -- whitespace-handling boilerplate
 sc = L.space space1 (L.skipLineComment "//") empty
@@ -73,7 +61,7 @@ for = do
   return $ For n e b
 
 decl :: Parser Statement
-decl = try $ (Decl <$> t <*> name <*> optional (symbol "=" >> expr)) <* symbol ";"
+decl = Decl <$> t <*> name <*> optional (symbol "=" >> expr) <* symbol ";"
 
 block :: Parser Statement
 block = Block <$> between (symbol "{") (symbol "}") (many stmt)
@@ -88,14 +76,14 @@ continue :: Parser Statement
 continue = Continue <$ (symbol "continue" >> symbol ";")
 
 stmt :: Parser Statement
-stmt = for <|> ifBlock <|> while <|> block <|> decl <|> returnStmt <|> breakStmt <|> continue <|> line <?> "statement"
+stmt = for <|> ifBlock <|> while <|> block <|> returnStmt <|> breakStmt <|> continue <|> try line <|> decl <?> "statement"
 
 -- parsing of expressions
 name :: Parser Name
 name = (lexeme $ do
   l <- letterChar
-  r <- many (alphaNumChar <|> char '_')
-  return $ T.pack (l : r)) <?> "identifier"
+  r <- takeWhileP Nothing (liftM2 (||) isAlphaNum (=='_'))
+  return $ T.cons l r) <?> "identifier"
 
 commaSplit :: Parser a -> Parser [a]
 commaSplit = flip sepEndBy (symbol ",")
@@ -104,7 +92,7 @@ nameLit :: Parser Expr
 nameLit = Name <$> name
 
 int :: Parser Expr
-int = IntLit <$> L.decimal
+int = IntLit <$> L.decimal <* sc
 
 charLit :: Parser Expr
 charLit = IntLit . fromEnum <$> between (char '\'') (symbol "'") L.charLiteral
@@ -118,5 +106,30 @@ stringLit = ListLit . map (IntLit . fromEnum) <$> (char '"' >> manyTill L.charLi
 call :: Parser Expr
 call = Call <$> name <*> parens (commaSplit expr)
 
+term :: Parser Expr
+term = parens expr <|> try call <|> stringLit <|> list <|> charLit <|> int <|> nameLit <?> "term"
+
+op n = try $ (symbol n <* notFollowedBy (char '=') <?> "operator")
+given t s = t ((\x y -> Call s [x, y]) <$ op s)
+il = map (given InfixL)
+ir = map (given InfixR)
+iN = map (given InfixN)
+pf = map (\s -> Prefix (foldr1 (.) <$> some ((Call s . pure) <$ symbol s)))
+
+ops = [ il ["^"]
+      , pf ["+", "-"]
+      , il ["*", "%"]
+      , il ["+", "-"]
+      , iN ["==", "<", ">", ">=", "<="]
+      , pf ["!"]
+      , il ["||", "&&"]
+      , ir ["=", "+=", "-=", "*=", "%="] ]
+
 expr :: Parser Expr
-expr = parens expr <|> call <|> stringLit <|> list <|> charLit <|> int <|> nameLit <?> "expression"
+expr = makeExprParser term ops <?> "expression"
+
+parseLyliet :: Text -> String -> IO (Maybe [TopLevel])
+parseLyliet t f =
+  case parse lyliet f t of
+    Left b  -> Nothing <$ putStrLn (errorBundlePretty b)
+    Right p -> Just p  <$ return ()

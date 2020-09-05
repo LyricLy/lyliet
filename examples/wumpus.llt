@@ -1,0 +1,178 @@
+// largely a port of my byfon implementation, with some bugs fixed
+
+list(int) gen_uniq_positions(int count) {
+    list(int) pos;
+    while (count) {
+        while (1) {
+            int new_val = rand(1, 20);
+            if (!elemof(pos, new_val)) break;
+        }
+        push(pos, count);
+        count -= 1;
+    }
+    return pos;
+}
+
+list(int) connected_rooms(int pos) {
+    if (pos == 1) {
+        return [2, 5, 8];
+    } else if (pos == 2) {
+        return [1, 3, 10];
+    } else if (pos == 3) {
+        return [2, 4, 12];
+    } else if (pos == 4) {
+        return [3, 4, 14];
+    } else if (pos == 5) {
+        return [4, 6, 1];
+    } else if (pos == 6) {
+        return [5, 7, 15];
+    } else if (pos == 7) {
+        return [6, 8, 17];
+    } else if (pos == 8) {
+        return [7, 9, 1];
+    } else if (pos == 9) {
+        return [8, 10, 18];
+    } else if (pos == 10) {
+        return [9, 11, 2];
+    } else if (pos == 11) {
+        return [10, 12, 19];
+    } else if (pos == 12) {
+        return [11, 13, 3];
+    } else if (pos == 13) {
+        return [12, 14, 20];
+    } else if (pos == 14) {
+        return [13, 15, 4];
+    } else if (pos == 15) {
+        return [14, 16, 6];
+    } else if (pos == 16) {
+        return [15, 17, 20];
+    } else if (pos == 17) {
+        return [16, 18, 7];
+    } else if (pos == 18) {
+        return [17, 19, 9];
+    } else if (pos == 19) {
+        return [18, 20, 11];
+    } else if (pos == 20) {
+        return [19, 16, 19];
+    }
+} 
+
+int read_pos(list(int) valid) {
+    while (1) {
+        int i = readnum();
+        if (len(valid) == 0 || elemof(i, valid) && i >= 1 && i <= 20) break;
+        prints("Invalid position.\n");
+    }
+}
+
+void main() {
+    prints("Welcome to Hunt the Wumpus!\nImplemented in Lyliet. Original Lyliet source code, and Lyliet itself, provided and written by LyricLy.\nAll rights reserved, LyricLy 2020\n==========\n");
+
+    list(int) pos = gen_uniq_positions(6);
+
+    // assign positions
+    player = pop(pos); wumpus = pop(pos); pits = take(pos, 2); bats = take(pos, 2);
+
+    int arrows = 5;
+
+    while (1) {
+        // main loop
+        prints("\n You are in room "); printnum(player); prints(".\n");
+
+        list(int) rooms = connected_rooms(player);
+        prints("This room is connected to rooms ");
+        int last = pop(rooms);
+        for (room : rooms) {
+            printnum(room);
+            prints(", ");
+        }
+        prints("and "); printnum(last); prints(".\n");
+        push(rooms, last);
+
+        if (elemof(wumpus, rooms)) prints("You smell a wumpus.\n");
+        if (elemof(at(pits, 0), rooms) || elemof(at(pits, 1), rooms)) prints("You feel a draft.\n");
+        if (elemof(at(bats, 0), rooms) || elemof(at(bats, 1), rooms)) prints("You hear the flapping of wings.\n");
+
+        int r;
+        while (1) {
+            prints("Would you like to move or shoot? (M/S) ");
+            int r = at(readl(), 0);
+            if (r == 'M' || r == "m") {
+                r = 0;
+                break;
+            } else if (r == 'S' || r == 's') {
+                if (arrows) {
+                    r = 1;
+                    break;
+                } else {
+                    prints("You have no remaining arrows.\n");
+                }
+            } else {
+                prints("Invalid input.\n");
+            }
+        }
+
+        int woke_wumpus = 0;
+
+        if (r == 0) {
+            prints("To where? ");
+            int n = read_pos(rooms);
+            player = n;
+            while (elemof(player, bats)) {
+                prints("Super bat snatch!\n");
+                player = rand(1, 20);
+            }
+            if (elemof(player, pits)) {
+                prints("You fell in a pit and died. You lose!\n");
+                break;
+            }
+            if (player == wumpus) {
+                prints("You bumped into the Wumpus!");
+                woke_wumpus = 1;
+            }
+        } else if (r == 1) {
+            arrows -= 1;
+            woke_wumpus = 1;
+
+            int s;
+            while (1) {
+                prints("How many spaces should the arrow go (1-5)? ");
+                s = readnum();
+                if (s >= 1 && s <= 5) break;
+                prints("Invalid number.");
+            }
+
+            int arrow = player;
+            int end_game = 0;
+            while (s) {
+                prints("Where should the arrow go next? ");
+                int p = read_pos([]);
+
+                list(int) arooms = connected_rooms(arrow);
+                if (elemof(p, arooms)) arrow = p;
+                else arrow = at(arooms, rand(0, 2));
+
+                if (arrow == wumpus) {
+                    prints("You hit the Wumpus! You win!\n");
+                    end_game = 1;
+                    break;
+                } else if (arrow == player) {
+                    prints("The arrow bounced back at you and killed you. You lose!");
+                    end_game = 1;
+                    break;
+                }
+
+                s -= 1;
+            }
+            if (end_game) break;
+        }
+
+        if (woke_wumpus) {
+            wumpus = at(connected_rooms(wumpus), rand(0, 2));
+            if (wumpus == player) {
+                prints("The wumpus got you. You lose!");
+                break;
+            }
+        }
+    }
+}

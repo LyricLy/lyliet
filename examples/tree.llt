@@ -8,5 +8,5 @@ Tree(a) leaf(a val) {
 }
 
 Tree(a) bin_node(Tree(a) x, Tree(a) y, a val) {
-    return [[x, y], val]
+    return [[x, y], val];
 }

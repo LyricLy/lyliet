@@ -1,10 +1,13 @@
 import Parser
 import System.Environment
-import qualified Data.Text as T
+import Data.Maybe
+import Control.Monad
+import qualified Data.Text.IO as TIO
 
 
 main = do
   (fn:_) <- getArgs
-  code <- readFile fn
-  let p = parseMaybe lyliet (T.pack code)
-  print p
+  code <- TIO.readFile fn
+  t <- parseLyliet code fn
+  when (isJust t) $ do
+    print t

@@ -1,0 +1,13 @@
+void main() {
+    for (i : range(1, 100)) {
+        if (i % 15 == 0) {
+            putstr("FizzBuzz");
+        } else if (i % 3 == 0) {
+            putstr("Fizz");
+        } else if (i % 5 == 0) {
+            putstr("Buzz");
+        } else {
+            putint(i);
+        }
+    }
+}

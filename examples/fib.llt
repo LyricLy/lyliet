@@ -1,0 +1,12 @@
+void main() {
+    int x = 0;
+    int y = 1;
+    int temp;
+
+    while (1) {
+        put_int(y);
+        temp = y;
+        y += x;
+        x = temp;
+    }
+}

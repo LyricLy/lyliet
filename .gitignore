@@ -3,6 +3,7 @@
 !Main.hs
 !Interpret.hs
 !Parser.hs
+!AST.hs
 !examples
 !examples/*
 !README.md
